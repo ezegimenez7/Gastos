@@ -1,0 +1,141 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Gastos Eze y Cande</title>
+<style>
+:root{--bg:#f6f5f1;--cd:#fff;--tx:#1d1d1b;--mu:#6b6a65;--bd:#e3e1da;--ac:#1d6b5a;--bad:#b3402a;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--cd:#212120;--tx:#ecebe6;--mu:#9b9a93;--bd:#34332f;--ac:#4fb59d;--bad:#e0735c;color-scheme:dark}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+header,main{max-width:720px;margin:0 auto;padding:12px 14px}
+h1{font-size:18px;margin:0 0 8px}h1 small{font-size:11px;font-weight:400;color:var(--mu);margin-left:6px}
+h3{font-size:13px;margin:22px 0 8px;color:var(--mu);text-transform:uppercase;letter-spacing:.04em}
+nav{display:flex;gap:6px;overflow-x:auto}nav button{flex:1;white-space:nowrap}
+button,input,select{font:inherit;color:var(--tx);background:var(--cd);border:1px solid var(--bd);border-radius:8px;padding:8px 10px}
+button{cursor:pointer}nav button.on,.pri{background:var(--ac);color:#fff;border-color:var(--ac)}
+#mw{margin-top:8px;display:flex;gap:8px;align-items:center}
+.kp{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}.kp div,.box{background:var(--cd);border:1px solid var(--bd);border-radius:10px;padding:10px}
+.kp span,.mu{color:var(--mu);font-size:12px;display:block}.kp b{font-size:16px}
+.box{margin-top:10px}.big{font-size:18px;font-weight:600;margin:8px 0}.bad{color:var(--bad)}.ok{color:var(--ac)}
+.pg{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin:4px 0}.pg i{display:block;height:100%;background:var(--ac)}.pg.o i{background:var(--bad)}
+.dn{display:flex;gap:12px;align-items:center}.dn ul{list-style:none;margin:0;padding:0;flex:1;font-size:13px}.dn li{display:flex;gap:6px;align-items:center;padding:2px 0}.dn li b{margin-left:auto}.dn i{width:10px;height:10px;border-radius:2px;flex:none}
+svg.ch{width:100%}svg.ch text{fill:var(--mu);font-size:9px}
+.cr{padding:6px 0;border-bottom:1px solid var(--bd)}.cr div{display:flex;justify-content:space-between;gap:8px}
+.mv{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}.mv span{white-space:pre-line}.mv>div:last-child{white-space:nowrap;text-align:right}.mv button{margin-left:6px;padding:2px 8px}
+form label{display:block;margin:10px 0;font-size:13px;color:var(--mu)}form input,form select{width:100%;margin-top:4px}
+.pri{width:100%;margin-top:6px;padding:12px}
+details{margin-top:10px}summary{cursor:pointer;font-weight:600}.bi{width:110px;text-align:right}
+.rw{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0}
+#warn{background:var(--bad);color:#fff;padding:8px 14px;text-align:center;font-size:13px}
+</style></head><body>
+<div id="warn" hidden></div>
+<header><h1>Gastos · Eze y Cande<small id="st"></small></h1><nav id="nv"><button data-t="Hogar">Hogar</button><button data-t="Eze">Eze</button><button data-t="Cande">Cande</button><button data-t="Pagos">Pagos</button><button data-t="Cargar">+ Gasto</button><button data-t="Presupuesto">Presupuesto</button></nav>
+<div id="mw"><span class="mu">Mes</span><input type="month" id="mes"></div></header>
+<main id="app"></main>
+<script>
+const API='PEGAR_URL_DE_APPS_SCRIPT',TOKEN='CAMBIAR_ESTA_CLAVE';
+const $=s=>document.querySelector(s),P=['Eze','Cande'],DEST=['Hogar','Eze','Cande'];
+const DC=['Alimentos y Supermercado','Vivienda y Servicios','Transporte y Movilidad','Salud y Cuidado Personal','Ocio y Entretenimiento','Educacion y Trabajo','Ahorros e Inversiones','Otros Gastos'];
+const DM=['Efectivo','Transferencia','Débito VISA BBVA','Crédito VISA','Crédito VISA BBVA','Crédito VISA GALICIA','Crédito MASTER SANTANDER'];
+const COL=['#1d6b5a','#d98c2b','#5b7fc7','#b3402a','#8a5fb0','#3f9fb5'];
+const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
+const pad=n=>String(n).padStart(2,'0'),today=()=>{const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S={rows:[],pagos:[],bud:{Hogar:{},Eze:{},Cande:{}},split:50},pend=new Set(),gone=new Set();
+try{const j=JSON.parse(localStorage.getItem('gastos_v2'));if(j&&j.rows)S=j}catch(e){}
+const keep=()=>{try{localStorage.setItem('gastos_v2',JSON.stringify(S))}catch(e){}};
+const st=t=>{$('#st').textContent=t};
+const post=o=>API.startsWith('http')?fetch(API,{method:'POST',body:JSON.stringify({...o,token:TOKEN})}).catch(()=>st('Sin conexión')):0;
+const cats=()=>[...new Set([...DC,...S.rows.map(r=>r.cat)])],meds=()=>[...new Set([...DM,...S.rows.map(r=>r.med)])];
+let tab='Hogar',mes=today().slice(0,7),form={d:today(),dest:'Hogar',pago:'Eze',cat:DC[0],med:'Transferencia'},pf=null;
+const inM=(r,m)=>r.d.slice(0,7)===m,sum=a=>a.reduce((x,r)=>x+r.m,0);
+const addM=(m,k)=>{const[y,n]=m.split('-').map(Number),d=new Date(y,n-1+k,1);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
+const daysIn=m=>{const[y,n]=m.split('-').map(Number);return new Date(y,n,0).getDate()};
+const prog=(s,b)=>`<div class="pg${s>b?' o':''}"><i style="width:${Math.min(100,s/b*100)}%"></i></div>`;
+const grp=(rows,k)=>{const o={};rows.forEach(r=>o[r[k]]=(o[r[k]]||0)+r.m);return o};
+
+function donut(it){const T=it.reduce((a,b)=>a+b[1],0);if(!T)return'<p class="mu">Sin gastos en este mes.</p>';
+it=it.sort((a,b)=>b[1]-a[1]);if(it.length>6){const o=it.slice(5).reduce((a,b)=>a+b[1],0);it=it.slice(0,5).concat([['Otras',o]])}
+const r=40,C=2*Math.PI*r;let off=0,s='';
+it.forEach((x,i)=>{const l=x[1]/T*C;s+=`<circle r="${r}" cx="60" cy="60" fill="none" stroke="${COL[i]}" stroke-width="22" stroke-dasharray="${l} ${C-l}" stroke-dashoffset="${-off}" transform="rotate(-90 60 60)"/>`;off+=l});
+return`<div class="dn"><svg viewBox="0 0 120 120" width="130" height="130">${s}</svg><ul>${it.map((x,i)=>`<li><i style="background:${COL[i]}"></i>${esc(x[0])}<b>${Math.round(x[1]/T*100)}%</b></li>`).join('')}</ul></div>`}
+function bars(rows){const ms=[-5,-4,-3,-2,-1,0].map(k=>addM(mes,k)),v=ms.map(m=>sum(rows.filter(r=>inM(r,m)))),mx=Math.max(...v,1);
+return`<svg viewBox="0 0 300 115" class="ch">${v.map((x,i)=>{const h=x/mx*70;return`<rect x="${i*50+10}" y="${90-h}" width="30" height="${h}" rx="3" fill="var(--ac)" opacity="${ms[i]===mes?1:.45}"/><text x="${i*50+25}" y="105" text-anchor="middle">${ms[i].slice(5)}/${ms[i].slice(2,4)}</text><text x="${i*50+25}" y="${86-h}" text-anchor="middle">${x?Math.round(x/1000)+'k':''}</text>`}).join('')}</svg>`}
+function acum(rows,bT,proy,cur,dn){const nd=daysIn(mes),dd=Array(nd).fill(0);rows.forEach(r=>dd[+r.d.slice(8,10)-1]+=r.m);let c=0;const pts=dd.map(v=>c+=v).slice(0,dn),mx=Math.max(c,bT,proy,1),X=i=>10+i/Math.max(nd-1,1)*280,Y=v=>100-v/mx*85;
+let s=`<polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map((v,i)=>X(i)+','+Y(v)).join(' ')}"/>`;
+if(bT)s+=`<line x1="10" x2="290" y1="${Y(bT)}" y2="${Y(bT)}" stroke="var(--bad)" stroke-dasharray="4 3"/><text x="12" y="${Y(bT)-3}">presupuesto ${Math.round(bT/1000)}k</text>`;
+if(cur&&dn<nd)s+=`<line x1="${X(dn-1)}" y1="${Y(c)}" x2="${X(nd-1)}" y2="${Y(proy)}" stroke="var(--mu)" stroke-dasharray="3 3"/>`;
+return`<svg viewBox="0 0 300 118" class="ch">${s}<text x="10" y="113">1</text><text x="290" y="113" text-anchor="end">${nd}</text></svg>`}
+
+function bal(rows,pg){let e=0,c=0,x=0,y=0;
+rows.forEach(r=>{if(r.dest==='Hogar'&&r.pago!=='Otro'){r.pago==='Eze'?e+=r.m:c+=r.m}else if(r.dest==='Cande'&&r.pago==='Eze')x+=r.m;else if(r.dest==='Eze'&&r.pago==='Cande')y+=r.m});
+const t=e+c,sE=t*S.split/100,sC=t-sE;let net=(e-sE)+x-y;
+pg.forEach(p=>{if(p.de==='Cande'&&p.a==='Eze')net-=p.m;else if(p.de==='Eze'&&p.a==='Cande')net+=p.m});return{e,c,sE,sC,x,y,net}}
+const owe=n=>Math.abs(n)<1?'Están a mano':n>0?'Cande le debe a Eze '+fmt(n):'Eze le debe a Cande '+fmt(-n);
+function deuda(){const m=bal(S.rows.filter(r=>inM(r,mes)),[]),a=bal(S.rows,S.pagos);
+return`<div class="box"><b>Cuentas entre Eze y Cande</b>
+<div class="rw"><span>Eze puso en el Hogar (mes)</span><span>${fmt(m.e)} · le toca ${fmt(m.sE)}</span></div>
+<div class="rw"><span>Cande puso en el Hogar (mes)</span><span>${fmt(m.c)} · le toca ${fmt(m.sC)}</span></div>
+${m.x||m.y?`<div class="rw"><span>Personales pagados por el otro</span><span>Eze→Cande ${fmt(m.x)} · Cande→Eze ${fmt(m.y)}</span></div>`:''}
+<span class="mu">Saldo acumulado (todos los meses, descontando pagos)</span>
+<p class="big ${Math.abs(a.net)<1?'':'bad'}">${owe(a.net)}</p>
+<button data-t="Pagos">Registrar un pago →</button>
+<label class="mu" style="margin-top:10px">Eze paga el <input id="sp" type="number" min="0" max="100" value="${S.split}" style="width:64px"> % del Hogar (Cande el resto)</label></div>`}
+
+function vista(sc){const all=S.rows.filter(r=>inM(r,mes)),rows=all.filter(r=>r.dest===sc),hist=S.rows.filter(r=>r.dest===sc),T=sum(rows),pm=sum(hist.filter(r=>inM(r,addM(mes,-1)))),bc=grp(rows,'cat'),bm=grp(rows,'med');
+const B=S.bud[sc]||{},bT=Object.values(B).reduce((a,b)=>a+(+b||0),0),nd=daysIn(mes),cur=mes===today().slice(0,7),dn=cur?+today().slice(8):nd,proy=T/dn*nd,dl=pm?Math.round((T/pm-1)*100):null;
+let h=`<div class="kp"><div><span>Total del mes</span><b>${fmt(T)}</b></div><div><span>Gastos</span><b>${rows.length}</b></div><div><span>Presupuesto</span><b>${bT?fmt(bT):'—'}</b></div></div>
+<div class="kp"><div><span>vs mes anterior</span><b class="${dl>0?'bad':'ok'}">${dl==null?'—':(dl>0?'+':'')+dl+'%'}</b></div><div><span>Promedio diario</span><b>${fmt(T/dn)}</b></div><div><span>${cur?'Proyección al cierre':'Mes anterior'}</span><b class="${cur&&bT&&proy>bT?'bad':''}">${fmt(cur?proy:pm)}</b></div></div>`;
+if(bT)h+=prog(T,bT)+(cur&&proy>bT?`<p class="mu bad">Al ritmo actual te pasás del presupuesto por ${fmt(proy-bT)}.</p>`:'');
+if(sc==='Hogar')h+=deuda();
+h+=`<h3>Evolución del mes (acumulado)</h3>${acum(rows,bT,proy,cur,dn)}<h3>Por categoría</h3>${donut(Object.entries(bc))}`;
+const ks=[...new Set([...Object.keys(bc),...Object.keys(B).filter(k=>+B[k])])].sort((a,b)=>(bc[b]||0)-(bc[a]||0));
+h+=ks.map(k=>`<div class="cr"><div><span>${esc(k)}</span><span>${fmt(bc[k]||0)}${+B[k]?' / '+fmt(B[k]):''}</span></div>${+B[k]?prog(bc[k]||0,+B[k]):''}</div>`).join('');
+h+=`<h3>Por medio de pago</h3>`+(Object.entries(bm).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="cr"><div><span>${esc(k)}</span><span>${fmt(v)} · ${Math.round(v/T*100)}%</span></div>${prog(v,T)}</div>`).join('')||'<p class="mu">—</p>');
+h+=`<h3>Últimos 6 meses</h3>${bars(hist)}<h3>Movimientos</h3>`;
+h+=rows.sort((a,b)=>b.d.localeCompare(a.d)).map(r=>`<div class="mv"><div><b>${esc(r.desc||r.cat)}</b><span class="mu">${r.d} · ${esc(r.cat)} · pagó ${esc(r.pago)} · ${esc(r.med)}</span></div><div>${fmt(r.m)}<button data-del="${r.id}" data-ty="r">✕</button></div></div>`).join('')||'<p class="mu">Sin movimientos.</p>';
+return h}
+
+const opt=(a,v)=>a.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).join('');
+function cargar(){return`<form id="f"><label>Fecha<input type="date" name="d" value="${form.d}" required></label>
+<label>Destino (¿para quién es el gasto?)<select name="dest">${opt(DEST,form.dest)}</select></label>
+<label>Quién pagó<select name="pago">${opt([...P,'Otro'],form.pago)}</select></label>
+<label>Categoría<select name="cat">${opt(cats(),form.cat)}</select></label>
+<label>Medio de pago<select name="med">${opt(meds(),form.med)}</select></label>
+<label>Monto<input name="m" type="number" inputmode="decimal" step="any" min="0" required></label>
+<label>Descripción<input name="desc" placeholder="Ej: súper, nafta, cena"></label>
+<button class="pri">Guardar gasto</button><p id="ok" class="mu"></p></form>`}
+function pagos(){const a=bal(S.rows,S.pagos);
+if(!pf){const de=a.net>0?'Cande':'Eze';pf={d:today(),de,a:de==='Eze'?'Cande':'Eze',m:Math.abs(a.net)>=1?Math.round(Math.abs(a.net)):'',n:''}}
+return`<div class="box"><span class="mu">Saldo actual</span><p class="big ${Math.abs(a.net)<1?'ok':'bad'}">${owe(a.net)}</p><span class="mu">Incluye todos los gastos del Hogar y personales pagados por el otro, menos los pagos registrados abajo.</span></div>
+<h3>Registrar pago / transferencia</h3><form id="pf"><label>Fecha<input type="date" name="d" value="${pf.d}" required></label>
+<label>Quién paga (transfiere)<select name="de">${opt(P,pf.de)}</select></label><label>A quién<select name="a">${opt(P,pf.a)}</select></label>
+<label>Monto<input name="m" type="number" inputmode="decimal" step="any" min="1" value="${pf.m}" required></label>
+<label>Nota<input name="n" placeholder="Ej: transferencia del mes" value="${esc(pf.n)}"></label><button class="pri">Guardar pago</button></form>
+<h3>Historial de pagos</h3>`+(S.pagos.slice().sort((x,y)=>y.d.localeCompare(x.d)).map(p=>`<div class="mv"><div><b>${esc(p.de)} → ${esc(p.a)}</b><span class="mu">${p.d}${p.n?' · '+esc(p.n):''}</span></div><div>${fmt(p.m)}<button data-del="${p.id}" data-ty="p">✕</button></div></div>`).join('')||'<p class="mu">Todavía no hay pagos.</p>')}
+function presu(){return`<p class="mu">Montos mensuales por categoría (se aplican a todos los meses). “Sugerir” completa las categorías vacías con el promedio de los 3 meses anteriores a ${mes}.</p>`+DEST.map(sc=>{const B=S.bud[sc]||{};
+return`<details><summary>${sc} · ${fmt(Object.values(B).reduce((a,b)=>a+(+b||0),0))}</summary><button data-sug="${sc}" style="margin:8px 0">Sugerir según promedio</button>${cats().map(k=>`<div class="rw"><span>${esc(k)}</span><input class="bi" type="number" inputmode="decimal" min="0" data-sc="${sc}" data-k="${esc(k)}" value="${B[k]||''}" placeholder="0"></div>`).join('')}</details>`}).join('')}
+function render(){document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab&&b.closest('nav')));
+$('#mw').hidden=['Cargar','Presupuesto','Pagos'].includes(tab);$('#mes').value=mes;
+$('#app').innerHTML=tab==='Cargar'?cargar():tab==='Presupuesto'?presu():tab==='Pagos'?pagos():vista(tab)}
+const sendCfg=()=>{keep();post({op:'cfg',bud:S.bud,split:S.split})};
+document.addEventListener('click',e=>{const t=e.target.closest('[data-t]'),d=e.target.closest('[data-del]'),g=e.target.closest('[data-sug]');
+if(t){tab=t.dataset.t;render();scrollTo(0,0)}
+if(g){const sc=g.dataset.sug,B=S.bud[sc]=S.bud[sc]||{};cats().forEach(k=>{const v=[1,2,3].reduce((a,i)=>a+sum(S.rows.filter(r=>r.dest===sc&&r.cat===k&&inM(r,addM(mes,-i)))),0)/3;if(v>0&&!B[k])B[k]=Math.round(v/1000)*1000||Math.round(v)});sendCfg();render();document.querySelector(`[data-sug="${sc}"]`).closest('details').open=true}
+if(d){if(d.dataset.arm){const id=d.dataset.del;if(d.dataset.ty==='r'){S.rows=S.rows.filter(r=>r.id!==id);post({op:'del',id})}else{S.pagos=S.pagos.filter(r=>r.id!==id);post({op:'delPago',id})}gone.add(id);keep();render()}else{d.dataset.arm=1;d.textContent='¿Borrar?'}}});
+document.addEventListener('change',e=>{const t=e.target;
+if(t.id==='mes'&&t.value){mes=t.value;render()}
+else if(t.id==='sp'){S.split=Math.min(100,Math.max(0,+t.value||0));sendCfg();render()}
+else if(t.classList.contains('bi')){(S.bud[t.dataset.sc]=S.bud[t.dataset.sc]||{})[t.dataset.k]=+t.value||0;sendCfg()}});
+document.addEventListener('submit',e=>{const id=e.target.id;if(id!=='f'&&id!=='pf')return;e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
+if(id==='f'){const r={id:'N'+Date.now(),d:f.d,dest:f.dest,pago:f.pago,cat:f.cat,med:f.med,m:+f.m,desc:f.desc.trim()};
+S.rows.push(r);pend.add(r.id);post({op:'add',row:r});form={d:f.d,dest:f.dest,pago:f.pago,cat:f.cat,med:f.med};keep();render();$('#ok').textContent='Guardado ✓ '+fmt(r.m)}
+else{if(f.de===f.a){alert('Quién paga y a quién no pueden ser la misma persona.');return}
+const p={id:'P'+Date.now(),d:f.d,de:f.de,a:f.a,m:+f.m,n:f.n.trim()};S.pagos.push(p);pend.add(p.id);post({op:'addPago',row:p});pf=null;keep();render()}});
+function merge(loc,rem){const ids=new Set(rem.map(r=>r.id));pend.forEach(i=>{if(ids.has(i))pend.delete(i)});gone.forEach(i=>{if(!ids.has(i))gone.delete(i)});
+return rem.filter(r=>!gone.has(r.id)).concat(loc.filter(r=>pend.has(r.id)&&!ids.has(r.id)))}
+async function load(){if(!API.startsWith('http')){$('#warn').hidden=false;$('#warn').textContent='Falta pegar la URL de Apps Script (API) y la clave (TOKEN) en este archivo.';return}
+try{const j=await(await fetch(API+'?token='+encodeURIComponent(TOKEN))).json();if(j.error){st('Clave incorrecta');return}
+S.rows=merge(S.rows,j.rows||[]);S.pagos=merge(S.pagos,j.pagos||[]);
+const a=document.activeElement,busy=a&&a.matches('input,select');
+if(j.cfg&&j.cfg.bud&&!busy){S.bud=j.cfg.bud;S.split=j.cfg.split||50}
+keep();st('Actualizado '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));if(!busy&&tab!=='Cargar')render()}catch(e){st('Sin conexión')}}
+render();load();setInterval(load,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+</script></body></html>
