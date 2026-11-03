@@ -16,7 +16,7 @@ button{cursor:pointer}nav button.on,.pri{background:var(--ac);color:#fff;border-
 .box{margin-top:10px}.big{font-size:18px;font-weight:600;margin:8px 0}.bad{color:var(--bad)}.ok{color:var(--ac)}
 .pg{height:8px;background:var(--bd);border-radius:4px;overflow:hidden;margin:4px 0}.pg i{display:block;height:100%;background:var(--ac)}.pg.o i{background:var(--bad)}
 .dn{display:flex;gap:12px;align-items:center}.dn ul{list-style:none;margin:0;padding:0;flex:1;font-size:13px}.dn li{display:flex;gap:6px;align-items:center;padding:2px 0}.dn li b{margin-left:auto}.dn i{width:10px;height:10px;border-radius:2px;flex:none}
-svg.ch{width:100%}svg.ch text{fill:var(--mu);font-size:9px}
+svg.ch{width:100%;max-width:460px;display:block}svg.ch text{fill:var(--mu);font-size:7px}
 .cr{padding:6px 0;border-bottom:1px solid var(--bd)}.cr div{display:flex;justify-content:space-between;gap:8px}
 .mv{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}.mv span{white-space:pre-line}.mv>div:last-child{white-space:nowrap;text-align:right}.mv button{margin-left:6px;padding:2px 8px}
 form label{display:block;margin:10px 0;font-size:13px;color:var(--mu)}form input,form select{width:100%;margin-top:4px}
@@ -52,6 +52,8 @@ const inM=(r,m)=>r.d.slice(0,7)===m,sum=a=>a.reduce((x,r)=>x+r.m,0);
 const addM=(m,k)=>{const[y,n]=m.split('-').map(Number),d=new Date(y,n-1+k,1);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
 const daysIn=m=>{const[y,n]=m.split('-').map(Number);return new Date(y,n,0).getDate()};
 const prog=(s,b)=>`<div class="pg${s>b?' o':''}"><i style="width:${Math.min(100,s/b*100)}%"></i></div>`;
+const nd=s=>{s=String(s||'').trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+'-'+pad(+m[2])+'-'+pad(+m[3]);m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);if(m)return(m[3].length==2?'20'+m[3]:m[3])+'-'+pad(+m[2])+'-'+pad(+m[1]);return s.slice(0,10)};
+const fx=a=>a.map(r=>({...r,d:nd(r.d)}));
 const grp=(rows,k)=>{const o={};rows.forEach(r=>o[r[k]]=(o[r[k]]||0)+r.m);return o};
 
 function donut(it){const T=it.reduce((a,b)=>a+b[1],0);if(!T)return'<p class="mu">Sin gastos en este mes.</p>';
@@ -61,7 +63,7 @@ it.forEach((x,i)=>{const l=x[1]/T*C;s+=`<circle r="${r}" cx="60" cy="60" fill="n
 return`<div class="dn"><svg viewBox="0 0 120 120" width="130" height="130">${s}</svg><ul>${it.map((x,i)=>`<li><i style="background:${COL[i]}"></i>${esc(x[0])}<b>${Math.round(x[1]/T*100)}%</b></li>`).join('')}</ul></div>`}
 function bars(rows){const ms=[-5,-4,-3,-2,-1,0].map(k=>addM(mes,k)),v=ms.map(m=>sum(rows.filter(r=>inM(r,m)))),mx=Math.max(...v,1);
 return`<svg viewBox="0 0 300 115" class="ch">${v.map((x,i)=>{const h=x/mx*70;return`<rect x="${i*50+10}" y="${90-h}" width="30" height="${h}" rx="3" fill="var(--ac)" opacity="${ms[i]===mes?1:.45}"/><text x="${i*50+25}" y="105" text-anchor="middle">${ms[i].slice(5)}/${ms[i].slice(2,4)}</text><text x="${i*50+25}" y="${86-h}" text-anchor="middle">${x?Math.round(x/1000)+'k':''}</text>`}).join('')}</svg>`}
-function acum(rows,bT,proy,cur,dn){const nd=daysIn(mes),dd=Array(nd).fill(0);rows.forEach(r=>dd[+r.d.slice(8,10)-1]+=r.m);let c=0;const pts=dd.map(v=>c+=v).slice(0,dn),mx=Math.max(c,bT,proy,1),X=i=>10+i/Math.max(nd-1,1)*280,Y=v=>100-v/mx*85;
+function acum(rows,bT,proy,cur,dn){if(!rows.length)return'<p class="mu">Sin gastos en este mes.</p>';const nd=daysIn(mes),dd=Array(nd).fill(0);rows.forEach(r=>dd[+r.d.slice(8,10)-1]+=r.m);let c=0;const pts=dd.map(v=>c+=v).slice(0,dn),mx=Math.max(c,bT,proy,1),X=i=>10+i/Math.max(nd-1,1)*280,Y=v=>100-v/mx*85;
 let s=`<polyline fill="none" stroke="var(--ac)" stroke-width="2" points="${pts.map((v,i)=>X(i)+','+Y(v)).join(' ')}"/>`;
 if(bT)s+=`<line x1="10" x2="290" y1="${Y(bT)}" y2="${Y(bT)}" stroke="var(--bad)" stroke-dasharray="4 3"/><text x="12" y="${Y(bT)-3}">presupuesto ${Math.round(bT/1000)}k</text>`;
 if(cur&&dn<nd)s+=`<line x1="${X(dn-1)}" y1="${Y(c)}" x2="${X(nd-1)}" y2="${Y(proy)}" stroke="var(--mu)" stroke-dasharray="3 3"/>`;
@@ -120,7 +122,7 @@ const B=S.bud[sc]||{},rs=S.rows.filter(r=>r.dest===sc),mr=rs.filter(r=>inM(r,mes
 const ks=[...new Set([...cats(),...Object.keys(cur)])];
 return`<details${sc==='Hogar'?' open':''}><summary>${sc} · gastado ${fmt(tg)} de ${fmt(tb)}</summary><button data-sug="${sc}" style="margin:8px 0">Sugerir según promedio</button>
 <div style="overflow-x:auto"><table><thead><tr><th>Categoría</th><th>Presup.</th><th>Gastado</th><th>Queda</th><th>${pm.slice(5)}/${pm.slice(2,4)}</th></tr></thead><tbody>`+
-ks.map(k=>{const g=cur[k]||0,b=+B[k]||0;return`<tr data-g="${g}"><td>${esc(k)}</td><td><input class="bi" type="number" inputmode="decimal" min="0" data-sc="${sc}" data-k="${esc(k)}" value="${b||''}" placeholder="0"></td><td>${fmt(g)}</td><td class="df${b&&g>b?' bad':''}">${dif(b,g)}</td><td class="mu" style="font-size:13px">${fmt(prv[k]||0)}</td></tr>`}).join('')+
+ks.map(k=>{const g=cur[k]||0,b=+B[k]||0;return`<tr data-g="${g}"><td>${esc(k)}</td><td><input class="bi" type="number" inputmode="decimal" min="0" data-sc="${sc}" data-k="${esc(k)}" value="${b||''}" placeholder="0"></td><td>${fmt(g)}</td><td class="df${b&&g>b?' bad':''}">${dif(b,g)}</td><td style="color:var(--mu)">${fmt(prv[k]||0)}</td></tr>`}).join('')+
 `<tr class="tt"><td>Total</td><td class="tb">${fmt(tb)}</td><td>${fmt(tg)}</td><td class="${tb&&tg>tb?'bad':''}">${dif(tb,tg)}</td><td>${fmt(tp)}</td></tr></tbody></table></div></details>`}).join('')}
 function render(){document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab&&b.closest('nav')));
 $('#mw').hidden=['Cargar','Pagos'].includes(tab);$('#mes').value=mes;
@@ -153,7 +155,7 @@ async function load(){if(!API.startsWith('http')){$('#warn').hidden=false;$('#wa
 let j;try{const tx=await(await fetch(API+'?token='+encodeURIComponent(TOKEN))).text();try{j=JSON.parse(tx)}catch(x){st('El script no devolvió datos: revisá la implementación');return}}catch(e){st('No se pudo conectar: revisá que el acceso sea "Cualquier usuario"');return}
 if(j.error){st(j.error==='token'?'Clave incorrecta':'Error del script: '+j.error);return}
 try{
-S.rows=merge(S.rows,j.rows||[]);S.pagos=merge(S.pagos,j.pagos||[]);
+S.rows=merge(S.rows,fx(j.rows||[]));S.pagos=merge(S.pagos,fx(j.pagos||[]));
 const a=document.activeElement,busy=a&&a.matches('input,select');
 if(j.cfg&&j.cfg.bud&&!busy){S.bud=j.cfg.bud;S.split=j.cfg.split||50}
 keep();st('Actualizado '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}));if(!busy&&tab!=='Cargar')render()}catch(e){st('Sin conexión')}}
