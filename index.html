@@ -35,7 +35,19 @@ td{padding:5px 4px;border-top:1px solid var(--bd);text-align:right;white-space:n
 <script>
 const API='https://script.google.com/macros/s/AKfycbxAg0oWADPAWnBBjK35LlNsjJsbDZjmArk7wrBxcsPQCAJtLl49sXkchVgx5qGLi25Dkw/exec',TOKEN='1306';
 const $=s=>document.querySelector(s),P=['Eze','Cande'],DEST=['Hogar','Eze','Cande'];
-const DC=['Alimentos y Supermercado','Vivienda y Servicios','Transporte y Movilidad','Salud y Cuidado Personal','Ocio y Entretenimiento','Educacion y Trabajo','Ahorros e Inversiones','Otros Gastos'];
+const CATG={'Categorías actuales':['Alimentos y Supermercado','Vivienda y Servicios','Transporte y Movilidad','Salud y Cuidado Personal','Ocio y Entretenimiento','Educacion y Trabajo','Ahorros e Inversiones','Otros Gastos'],
+'Alimentación':['Supermercado','Carnicería','Verdulería','Panadería y fiambres','Chino / almacén','Bebidas y alcohol','Kiosco y snacks','Delivery y comida pedida','Restaurantes y cenas afuera','Comida rápida (Mc, BK, etc.)','Café y meriendas','Almuerzo en el trabajo'],
+'Vivienda':['Alquiler','Expensas','Luz','Gas','Agua (AYSA)','Internet y TV','Reparaciones y arreglos','Muebles y electrodomésticos','Limpieza y artículos del hogar'],
+'Transporte':['Nafta','Seguro del auto','Patente e impuestos del auto','Verificación y trámites del auto','Service, repuestos y lavado','Cochera y peajes','Transporte público (SUBE)','Taxi y Uber','Bici (seguro y mantenimiento)'],
+'Salud y cuidado personal':['Farmacia','Médicos y estudios','Obra social / prepaga','Peluquería y barbería','Uñas y estética','Gym y deportes','Perfumería y cosmética'],
+'Ocio':['Salidas y bares','Cine, shows y eventos','Deportes y cancha','Viajes y escapadas','Suscripciones (streaming, música)','Juegos y hobbies'],
+'Ropa y compras personales':['Ropa y calzado','Tecnología y accesorios','Regalos','Flores y detalles'],
+'Comunicaciones':['Celular y recargas','Suscripciones de software y apps'],
+'Educación y trabajo':['Cursos y estudios','Herramientas de trabajo','Libros y materiales'],
+'Finanzas':['Cuotas y préstamos','Intereses y comisiones de tarjeta','Impuestos y monotributo','Ahorro para el auto','Ahorro general','Inversiones'],
+'Mascotas y familia':['Mascotas','Familia y ayuda a otros'],
+'Otros':['Otros gastos','Pago de tarjeta']};
+const DC=Object.values(CATG).flat();
 const DM=['Efectivo','Transferencia','Débito VISA BBVA','Crédito VISA','Crédito VISA BBVA','Crédito VISA GALICIA','Crédito MASTER SANTANDER'];
 const COL=['#1d6b5a','#d98c2b','#5b7fc7','#b3402a','#8a5fb0','#3f9fb5'];
 const fmt=n=>'$'+Math.round(n).toLocaleString('es-AR');
@@ -102,7 +114,7 @@ const opt=(a,v)=>a.map(x=>`<option${x===v?' selected':''}>${esc(x)}</option>`).j
 function cargar(){return`<form id="f"><label>Fecha<input type="date" name="d" value="${form.d}" required></label>
 <label>Destino (¿para quién es el gasto?)<select name="dest">${opt(DEST,form.dest)}</select></label>
 <label>Quién pagó<select name="pago">${opt([...P,'Otro'],form.pago)}</select></label>
-<label>Categoría<select name="cat">${opt(cats(),form.cat)}</select></label>
+<label>Categoría<select name="cat">${Object.entries(CATG).map(([g,a])=>`<optgroup label="${g}">${opt(a,form.cat)}</optgroup>`).join('')}${(x=>x.length?`<optgroup label="Otras">${opt(x,form.cat)}</optgroup>`:'')(cats().filter(c=>!DC.includes(c)))}</select></label>
 <label>Medio de pago<select name="med">${opt(meds(),form.med)}</select></label>
 <label>Monto<input name="m" type="number" inputmode="decimal" step="any" min="0" required></label>
 <label>Descripción<input name="desc" placeholder="Ej: súper, nafta, cena"></label>
@@ -120,10 +132,12 @@ function presu(){const pm=addM(mes,-1);
 return`<p class="mu">Cambiá el mes arriba para comparar. Presupuesto vs gastado en ese mes, y lo gastado el mes anterior (${pm}). “Sugerir” completa las categorías vacías con el promedio de hasta 3 meses anteriores que tengan gastos.</p>`+DEST.map(sc=>{
 const B=S.bud[sc]||{},rs=S.rows.filter(r=>r.dest===sc),mr=rs.filter(r=>inM(r,mes)),cur=grp(mr,'cat'),prv=grp(rs.filter(r=>inM(r,pm)),'cat'),tb=Object.values(B).reduce((a,b)=>a+(+b||0),0),tg=sum(mr),tp=sum(rs.filter(r=>inM(r,pm)));
 const ks=[...new Set([...cats(),...Object.keys(cur)])];
-return`<details${sc==='Hogar'?' open':''}><summary>${sc} · gastado ${fmt(tg)} de ${fmt(tb)}</summary><button data-sug="${sc}" style="margin:8px 0">Sugerir según promedio</button>
-<div style="overflow-x:auto"><table><thead><tr><th>Categoría</th><th>Presup.</th><th>Gastado</th><th>Queda</th><th>${pm.slice(5)}/${pm.slice(2,4)}</th></tr></thead><tbody>`+
-ks.map(k=>{const g=cur[k]||0,b=+B[k]||0;return`<tr data-g="${g}"><td>${esc(k)}</td><td><input class="bi" type="number" inputmode="decimal" min="0" data-sc="${sc}" data-k="${esc(k)}" value="${b||''}" placeholder="0"></td><td>${fmt(g)}</td><td class="df${b&&g>b?' bad':''}">${dif(b,g)}</td><td style="color:var(--mu)">${fmt(prv[k]||0)}</td></tr>`}).join('')+
-`<tr class="tt"><td>Total</td><td class="tb">${fmt(tb)}</td><td>${fmt(tg)}</td><td class="${tb&&tg>tb?'bad':''}">${dif(tb,tg)}</td><td>${fmt(tp)}</td></tr></tbody></table></div></details>`}).join('')}
+const row=k=>{const g=cur[k]||0,b=+B[k]||0;return`<tr data-g="${g}"><td>${esc(k)}</td><td><input class="bi" type="number" inputmode="decimal" min="0" data-sc="${sc}" data-k="${esc(k)}" value="${b||''}" placeholder="0"></td><td>${fmt(g)}</td><td class="df${b&&g>b?' bad':''}">${dif(b,g)}</td><td style="color:var(--mu)">${fmt(prv[k]||0)}</td></tr>`};
+const act=ks.filter(k=>(+B[k]||0)||cur[k]||prv[k]),oth=ks.filter(k=>!act.includes(k));
+const head=`<thead><tr><th>Categoría</th><th>Presup.</th><th>Gastado</th><th>Queda</th><th>${pm.slice(5)}/${pm.slice(2,4)}</th></tr></thead>`;
+return`<details class="dt"${sc==='Hogar'?' open':''}><summary>${sc} · gastado ${fmt(tg)} de ${fmt(tb)}</summary><button data-sug="${sc}" style="margin:8px 0">Sugerir según promedio</button>
+<div style="overflow-x:auto"><table>${head}<tbody>${act.map(row).join('')}<tr class="tt"><td>Total</td><td class="tb">${fmt(tb)}</td><td>${fmt(tg)}</td><td class="${tb&&tg>tb?'bad':''}">${dif(tb,tg)}</td><td>${fmt(tp)}</td></tr></tbody></table></div>
+${oth.length?`<details class="ot" style="margin-top:12px"><summary style="font-weight:400;font-size:13px">Otras categorías sin movimiento (${oth.length}): tocá para ponerles presupuesto</summary><div style="overflow-x:auto"><table>${head}<tbody>${oth.map(row).join('')}</tbody></table></div></details>`:''}</details>`}).join('')}
 function render(){document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab&&b.closest('nav')));
 $('#mw').hidden=['Cargar','Pagos'].includes(tab);$('#mes').value=mes;
 $('#app').innerHTML=tab==='Cargar'?cargar():tab==='Presupuesto'?presu():tab==='Pagos'?pagos():vista(tab)}
@@ -141,7 +155,7 @@ document.addEventListener('change',e=>{const t=e.target;
 if(t.id==='mes'&&t.value){mes=t.value;render()}
 else if(t.id==='sp'){S.split=Math.min(100,Math.max(0,+t.value||0));sendCfg();render()}
 else if(t.classList.contains('bi')){const sc=t.dataset.sc;(S.bud[sc]=S.bud[sc]||{})[t.dataset.k]=+t.value||0;sendCfg();
-const tr=t.closest('tr'),b=+t.value||0,g=+tr.dataset.g,c=tr.querySelector('.df'),det=t.closest('details');c.textContent=dif(b,g);c.className='df'+(b&&g>b?' bad':'');
+const tr=t.closest('tr'),b=+t.value||0,g=+tr.dataset.g,c=tr.querySelector('.df'),det=t.closest('details.dt');c.textContent=dif(b,g);c.className='df'+(b&&g>b?' bad':'');
 const tb=Object.values(S.bud[sc]).reduce((x,y)=>x+(+y||0),0),tt=det.querySelector('.tt');tt.querySelector('.tb').textContent=fmt(tb);tt.children[3].textContent=dif(tb,+tt.children[2].textContent.replace(/\D/g,'')||0);
 det.querySelector('summary').textContent=sc+' · gastado '+tt.children[2].textContent+' de '+fmt(tb)}});
 document.addEventListener('submit',e=>{const id=e.target.id;if(id!=='f'&&id!=='pf')return;e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
