@@ -52,7 +52,7 @@ const inM=(r,m)=>r.d.slice(0,7)===m,sum=a=>a.reduce((x,r)=>x+r.m,0);
 const addM=(m,k)=>{const[y,n]=m.split('-').map(Number),d=new Date(y,n-1+k,1);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
 const daysIn=m=>{const[y,n]=m.split('-').map(Number);return new Date(y,n,0).getDate()};
 const prog=(s,b)=>`<div class="pg${s>b?' o':''}"><i style="width:${Math.min(100,s/b*100)}%"></i></div>`;
-const nd=s=>{s=String(s||'').trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+'-'+pad(+m[2])+'-'+pad(+m[3]);m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);if(m)return(m[3].length==2?'20'+m[3]:m[3])+'-'+pad(+m[2])+'-'+pad(+m[1]);return s.slice(0,10)};
+const nd=s=>{s=String(s||'').trim();let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+'-'+pad(+m[2])+'-'+pad(+m[3]);m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})/);if(m)return(m[3].length==2?'20'+m[3]:m[3])+'-'+pad(+m[2])+'-'+pad(+m[1]);m=s.match(/^[A-Za-z]{3} ([A-Za-z]{3}) (\d{1,2}) (\d{4})/);if(m){const i='JanFebMarAprMayJunJulAugSepOctNovDec'.indexOf(m[1]);if(i>=0)return m[3]+'-'+pad(i/3+1)+'-'+pad(+m[2])}return s.slice(0,10)};
 const fx=a=>a.map(r=>({...r,d:nd(r.d)}));
 const grp=(rows,k)=>{const o={};rows.forEach(r=>o[r[k]]=(o[r[k]]||0)+r.m);return o};
 
