@@ -24,6 +24,9 @@ form label{display:block;margin:10px 0;font-size:13px;color:var(--mu)}form input
 details{margin-top:10px}summary{cursor:pointer;font-weight:600}.bi{width:110px;text-align:right}
 .rw{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:4px 0}
 #warn{background:var(--bad);color:#fff;padding:8px 14px;text-align:center;font-size:13px}
+[hidden]{display:none!important}
+table{width:100%;border-collapse:collapse;font-size:13px}th{font-size:11px;color:var(--mu);font-weight:500;text-align:right;padding:4px}th:first-child,td:first-child{text-align:left}
+td{padding:5px 4px;border-top:1px solid var(--bd);text-align:right;white-space:nowrap}td:first-child{white-space:normal}td .bi{width:84px;padding:4px 6px}.tt td{font-weight:600}
 </style></head><body>
 <div id="warn" hidden></div>
 <header><h1>Gastos · Eze y Cande<small id="st"></small></h1><nav id="nv"><button data-t="Hogar">Hogar</button><button data-t="Eze">Eze</button><button data-t="Cande">Cande</button><button data-t="Pagos">Pagos</button><button data-t="Cargar">+ Gasto</button><button data-t="Presupuesto">Presupuesto</button></nav>
@@ -110,20 +113,35 @@ return`<div class="box"><span class="mu">Saldo actual</span><p class="big ${Math
 <label>Monto<input name="m" type="number" inputmode="decimal" step="any" min="1" value="${pf.m}" required></label>
 <label>Nota<input name="n" placeholder="Ej: transferencia del mes" value="${esc(pf.n)}"></label><button class="pri">Guardar pago</button></form>
 <h3>Historial de pagos</h3>`+(S.pagos.slice().sort((x,y)=>y.d.localeCompare(x.d)).map(p=>`<div class="mv"><div><b>${esc(p.de)} → ${esc(p.a)}</b><span class="mu">${p.d}${p.n?' · '+esc(p.n):''}</span></div><div>${fmt(p.m)}<button data-del="${p.id}" data-ty="p">✕</button></div></div>`).join('')||'<p class="mu">Todavía no hay pagos.</p>')}
-function presu(){return`<p class="mu">Montos mensuales por categoría (se aplican a todos los meses). “Sugerir” completa las categorías vacías con el promedio de los 3 meses anteriores a ${mes}.</p>`+DEST.map(sc=>{const B=S.bud[sc]||{};
-return`<details><summary>${sc} · ${fmt(Object.values(B).reduce((a,b)=>a+(+b||0),0))}</summary><button data-sug="${sc}" style="margin:8px 0">Sugerir según promedio</button>${cats().map(k=>`<div class="rw"><span>${esc(k)}</span><input class="bi" type="number" inputmode="decimal" min="0" data-sc="${sc}" data-k="${esc(k)}" value="${B[k]||''}" placeholder="0"></div>`).join('')}</details>`}).join('')}
+const dif=(b,g)=>b?(b>=g?fmt(b-g):'-'+fmt(g-b)):'—';
+function presu(){const pm=addM(mes,-1);
+return`<p class="mu">Cambiá el mes arriba para comparar. Presupuesto vs gastado en ese mes, y lo gastado el mes anterior (${pm}). “Sugerir” completa las categorías vacías con el promedio de hasta 3 meses anteriores que tengan gastos.</p>`+DEST.map(sc=>{
+const B=S.bud[sc]||{},rs=S.rows.filter(r=>r.dest===sc),mr=rs.filter(r=>inM(r,mes)),cur=grp(mr,'cat'),prv=grp(rs.filter(r=>inM(r,pm)),'cat'),tb=Object.values(B).reduce((a,b)=>a+(+b||0),0),tg=sum(mr),tp=sum(rs.filter(r=>inM(r,pm)));
+const ks=[...new Set([...cats(),...Object.keys(cur)])];
+return`<details${sc==='Hogar'?' open':''}><summary>${sc} · gastado ${fmt(tg)} de ${fmt(tb)}</summary><button data-sug="${sc}" style="margin:8px 0">Sugerir según promedio</button>
+<div style="overflow-x:auto"><table><thead><tr><th>Categoría</th><th>Presup.</th><th>Gastado</th><th>Queda</th><th>${pm.slice(5)}/${pm.slice(2,4)}</th></tr></thead><tbody>`+
+ks.map(k=>{const g=cur[k]||0,b=+B[k]||0;return`<tr data-g="${g}"><td>${esc(k)}</td><td><input class="bi" type="number" inputmode="decimal" min="0" data-sc="${sc}" data-k="${esc(k)}" value="${b||''}" placeholder="0"></td><td>${fmt(g)}</td><td class="df${b&&g>b?' bad':''}">${dif(b,g)}</td><td class="mu" style="font-size:13px">${fmt(prv[k]||0)}</td></tr>`}).join('')+
+`<tr class="tt"><td>Total</td><td class="tb">${fmt(tb)}</td><td>${fmt(tg)}</td><td class="${tb&&tg>tb?'bad':''}">${dif(tb,tg)}</td><td>${fmt(tp)}</td></tr></tbody></table></div></details>`}).join('')}
 function render(){document.querySelectorAll('[data-t]').forEach(b=>b.classList.toggle('on',b.dataset.t===tab&&b.closest('nav')));
-$('#mw').hidden=['Cargar','Presupuesto','Pagos'].includes(tab);$('#mes').value=mes;
+$('#mw').hidden=['Cargar','Pagos'].includes(tab);$('#mes').value=mes;
 $('#app').innerHTML=tab==='Cargar'?cargar():tab==='Presupuesto'?presu():tab==='Pagos'?pagos():vista(tab)}
 const sendCfg=()=>{keep();post({op:'cfg',bud:S.bud,split:S.split})};
 document.addEventListener('click',e=>{const t=e.target.closest('[data-t]'),d=e.target.closest('[data-del]'),g=e.target.closest('[data-sug]');
 if(t){tab=t.dataset.t;render();scrollTo(0,0)}
-if(g){const sc=g.dataset.sug,B=S.bud[sc]=S.bud[sc]||{};cats().forEach(k=>{const v=[1,2,3].reduce((a,i)=>a+sum(S.rows.filter(r=>r.dest===sc&&r.cat===k&&inM(r,addM(mes,-i)))),0)/3;if(v>0&&!B[k])B[k]=Math.round(v/1000)*1000||Math.round(v)});sendCfg();render();document.querySelector(`[data-sug="${sc}"]`).closest('details').open=true}
+if(g){const sc=g.dataset.sug,B=S.bud[sc]=S.bud[sc]||{};
+if(!S.rows.length){alert('Todavía no se cargaron los gastos de la planilla (arriba dice "Sin conexión"). Primero hay que lograr que la web se conecte.');return}
+const ms=[1,2,3].map(i=>addM(mes,-i)).filter(m=>S.rows.some(r=>r.dest===sc&&inM(r,m))),n=ms.length;
+if(!n){alert('No hay gastos de '+sc+' en los 3 meses anteriores a '+mes+'. Cambiá el mes de arriba a uno posterior a tus gastos.');return}
+cats().forEach(k=>{const v=sum(S.rows.filter(r=>r.dest===sc&&r.cat===k&&ms.includes(r.d.slice(0,7))))/n;if(v>0&&!B[k])B[k]=Math.round(v/1000)*1000||Math.round(v)});
+sendCfg();render();document.querySelector(`[data-sug="${sc}"]`).closest('details').open=true}
 if(d){if(d.dataset.arm){const id=d.dataset.del;if(d.dataset.ty==='r'){S.rows=S.rows.filter(r=>r.id!==id);post({op:'del',id})}else{S.pagos=S.pagos.filter(r=>r.id!==id);post({op:'delPago',id})}gone.add(id);keep();render()}else{d.dataset.arm=1;d.textContent='¿Borrar?'}}});
 document.addEventListener('change',e=>{const t=e.target;
 if(t.id==='mes'&&t.value){mes=t.value;render()}
 else if(t.id==='sp'){S.split=Math.min(100,Math.max(0,+t.value||0));sendCfg();render()}
-else if(t.classList.contains('bi')){(S.bud[t.dataset.sc]=S.bud[t.dataset.sc]||{})[t.dataset.k]=+t.value||0;sendCfg()}});
+else if(t.classList.contains('bi')){const sc=t.dataset.sc;(S.bud[sc]=S.bud[sc]||{})[t.dataset.k]=+t.value||0;sendCfg();
+const tr=t.closest('tr'),b=+t.value||0,g=+tr.dataset.g,c=tr.querySelector('.df'),det=t.closest('details');c.textContent=dif(b,g);c.className='df'+(b&&g>b?' bad':'');
+const tb=Object.values(S.bud[sc]).reduce((x,y)=>x+(+y||0),0),tt=det.querySelector('.tt');tt.querySelector('.tb').textContent=fmt(tb);tt.children[3].textContent=dif(tb,+tt.children[2].textContent.replace(/\D/g,'')||0);
+det.querySelector('summary').textContent=sc+' · gastado '+tt.children[2].textContent+' de '+fmt(tb)}});
 document.addEventListener('submit',e=>{const id=e.target.id;if(id!=='f'&&id!=='pf')return;e.preventDefault();const f=Object.fromEntries(new FormData(e.target));
 if(id==='f'){const r={id:'N'+Date.now(),d:f.d,dest:f.dest,pago:f.pago,cat:f.cat,med:f.med,m:+f.m,desc:f.desc.trim()};
 S.rows.push(r);pend.add(r.id);post({op:'add',row:r});form={d:f.d,dest:f.dest,pago:f.pago,cat:f.cat,med:f.med};keep();render();$('#ok').textContent='Guardado ✓ '+fmt(r.m)}
@@ -132,7 +150,9 @@ const p={id:'P'+Date.now(),d:f.d,de:f.de,a:f.a,m:+f.m,n:f.n.trim()};S.pagos.push
 function merge(loc,rem){const ids=new Set(rem.map(r=>r.id));pend.forEach(i=>{if(ids.has(i))pend.delete(i)});gone.forEach(i=>{if(!ids.has(i))gone.delete(i)});
 return rem.filter(r=>!gone.has(r.id)).concat(loc.filter(r=>pend.has(r.id)&&!ids.has(r.id)))}
 async function load(){if(!API.startsWith('http')){$('#warn').hidden=false;$('#warn').textContent='Falta pegar la URL de Apps Script (API) y la clave (TOKEN) en este archivo.';return}
-try{const j=await(await fetch(API+'?token='+encodeURIComponent(TOKEN))).json();if(j.error){st('Clave incorrecta');return}
+let j;try{const tx=await(await fetch(API+'?token='+encodeURIComponent(TOKEN))).text();try{j=JSON.parse(tx)}catch(x){st('El script no devolvió datos: revisá la implementación');return}}catch(e){st('No se pudo conectar: revisá que el acceso sea "Cualquier usuario"');return}
+if(j.error){st(j.error==='token'?'Clave incorrecta':'Error del script: '+j.error);return}
+try{
 S.rows=merge(S.rows,j.rows||[]);S.pagos=merge(S.pagos,j.pagos||[]);
 const a=document.activeElement,busy=a&&a.matches('input,select');
 if(j.cfg&&j.cfg.bud&&!busy){S.bud=j.cfg.bud;S.split=j.cfg.split||50}
